@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Habit Tracker</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="manifest" href="/static/manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 0;
+        }
+
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn-done { background: green; }
+        .btn-delete { background: red; }
+        .btn-add { background: #007bff; }
+
+        .habit-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .day-box {
+            background: #f1f1f1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+        }
+
+        /* MOBILE */
+        @media (max-width: 600px) {
+            .calendar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .container {
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <h1>Habit Tracker</h1>
+        <a href="{{ url_for('logout') }}" class="btn btn-delete">Logout</a><button onclick="toggleDarkMode()">Dark Mode</button>
+               </div>
+
+    <!-- ADD HABIT FORM -->
+    <div class="card">
+        <h3>Add New Habit</h3>
+
+        <form method="POST" action="{{ url_for('add_habit') }}">
+            <input type="text" name="name" placeholder="Enter habit name" required
+                   style="padding:10px; width:70%;">
+
+            <button type="submit" class="btn btn-add">Add</button>
+        </form>
+    </div>
+
+    <!-- HABITS LIST -->
+    {% for habit in habits %}
+    <div class="card">
+
+
+<div class="habit-name">
+    {{ habit.name }} (Streak: {{ habit.streak }})
+</div>
+
+
+<!-- PROGRESS BAR -->
+<div class="progress-container">
+    <div class="progress-bar" style="width: {{ (habit.week | selectattr('done') | list | length / 7 * 100) }}%">
+    </div>
+</div>
+        
+        <div style="margin-top:10px;">
+            <a href="{{ url_for('done', id=habit.id) }}" class="btn btn-done">Done</a>
+            <a href="{{ url_for('delete', id=habit.id) }}" class="btn btn-delete">Delete</a>
+        </div>
+<!-- CALENDAR -->
+<div class="calendar">
+    {% for day in habit.week %}
+        <div class="day-box">
+            {{ day.date.strftime('%d') }}
+            <br>
+            {% if day.done %} ✅ {% else %} ❌ {% endif %}
+        </div>
+    {% endfor %}
+</div>
+
+<!-- ✅ CHART (outside day loop) -->
+<canvas id="chart-{{ habit.id }}" height="100"></canvas>
+
+</div> <!-- ✅ close card -->
+{% endfor %} <!-- ✅ close habit loop -->
+ <script>
+function toggleDarkMode() {
+    document.body.classList.toggle("dark");
+
+    if (document.body.classList.contains("dark")) {
+        localStorage.setItem("theme", "dark");
+    } else {
+        localStorage.setItem("theme", "light");
+    }
+}
+
+window.onload = function () {
+
+    // load dark mode
+    if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+    }
+
+    // CREATE CHARTS
+    {% for habit in habits %}
+    new Chart(document.getElementById("chart-{{ habit.id }}"), {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for day in habit.week %}
+                "{{ day.date.strftime('%d') }}",
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Done',
+                data: [
+                    {% for day in habit.week %}
+                    {{ 1 if day.done else 0 }},
+                    {% endfor %}
+                ]
+            }]
+        }
+    });
+    {% endfor %}
+};
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js')
+    .then(function() {
+        console.log("Service Worker Registered");
+    })
+    .catch(function(error) {
+        console.log("Service Worker Error:", error);
+    });
+}
+</script>
+
+</body>
+</html>
